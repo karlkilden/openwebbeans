@@ -807,34 +807,48 @@ public class WebContextsService extends AbstractContextsService
         }
 
         ServletRequestContext requestContext = getRequestContext(true);
-        if (requestContext == null)
+        
+        if(requestContext == null) 
         {
-            logger.log(Level.WARNING, "Could NOT lazily initialize session context because NO active request context");
+            logCouldNotInitalize();
+        }
+        else {
+            HttpServletRequest servletRequest = requestContext.getServletRequest(); 
+            // this could be null if there is no active request context
+            if (servletRequest != null)
+            {
+                initSessionContextIfSessionFound(servletRequest);
+            }
+            
         }
 
-        HttpServletRequest servletRequest = requestContext.getServletRequest();
-        // this could be null if there is no active request context
-        if (servletRequest != null)
+    }
+    
+    private void logCouldNotInitalize()
+    {
+        logger.log(Level.WARNING, "Could NOT lazily initialize session context because NO active request context");
+    }
+    
+    private void initSessionContextIfSessionFound(HttpServletRequest servletRequest)
+    {
+        try
         {
-            try
+            HttpSession currentSession = servletRequest.getSession(createSession);
+            if (currentSession != null)
             {
-                HttpSession currentSession = servletRequest.getSession(createSession);
-                if (currentSession != null)
+                initSessionContext(currentSession);
+
+                if (logger.isLoggable(Level.FINE))
                 {
-                    initSessionContext(currentSession);
-
-                    if (logger.isLoggable(Level.FINE))
-                    {
-                        logger.log(Level.FINE, "Lazy SESSION context initialization SUCCESS");
-                    }
-
-                    return;
+                    logger.log(Level.FINE, "Lazy SESSION context initialization SUCCESS");
                 }
+
+                return;
             }
-            catch (Exception e)
-            {
-                logger.log(Level.SEVERE, WebBeansLoggerFacade.constructMessage(OWBLogConst.ERROR_0013, e));
-            }
+        }
+        catch (Exception e)
+        {
+            logger.log(Level.SEVERE, WebBeansLoggerFacade.constructMessage(OWBLogConst.ERROR_0013, e));
         }
     }
 
